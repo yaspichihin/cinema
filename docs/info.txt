@@ -1,0 +1,180 @@
+docker run -d \
+  --name films_db \
+  -p 5432:5432 \
+  -v /home/yaroslav/Code/cinema/docker/postrgresql/data:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_DB=films \
+   postgres:13 
+
+# Подключение к БД films
+psql -h 127.0.0.1 -U postgres -d films
+
+# Выполнение ddl файла
+psql -h 127.0.0.1 -U postgres -d films -f films.ddl 
+
+
+
+# Изучение индексов
+create extension "uuid-ossp";
+
+# Генерируем данные в интервале с 1900 по 2021 год с шагом в час.
+# В итоге сгенерируется 1060681 записей
+
+insert into content.film (id, title, type, creation_date, rating)
+select
+	uuid_generate_v4(),
+	'some name',
+	case when RANDOM() < 0.3 THEN 'movie' ELSE 'tv_show' END ,
+	date::DATE,
+	floor(random() * 100)
+from generate_series(
+  '1900-01-01'::DATE,
+  '2021-01-01'::DATE,
+  '1 hour'::interval
+) date; 
+
+
+select * from content.film where creation_date = '2020-04-01';
+explain analyze select * from content.film where creation_date = '2020-04-01';
+
+ Gather  (cost=1000.00..16439.78 rows=24 width=93) (actual time=23.294..27.643 rows=24 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on film  (cost=0.00..15437.38 rows=10 width=93) (actual time=19.590..19.627 rows=8 loops=3)
+         Filter: (creation_date = '2020-04-01'::date)
+         Rows Removed by Filter: 353552
+ Planning Time: 0.121 ms
+ Execution Time: 27.679 ms
+(8 rows)
+
+
+Разберём основные моменты: 
+Gather — этап конкатенации данных из двух процессов, которые выполняли параллельное сканирование таблицы.
+rows=24 — в результате операции было найдено всего 24 записи.
+Workers planned: 2 — планируется использовать два процесса для выполнения запроса.
+Workers Launched: 2 — БД использовала два процесса для обработки запроса.
+Parallel Seq Scan — таблица film_work была полностью просканирована.
+Filter — условие, для которого был составлен план.
+Rows Removed by Filter — сколько строк было отфильтровано каждым процессом.
+Planning time — время, затраченное на построение плана запроса.
+Execution time — время в миллисекундах, за которое выполнился запрос.
+
+# Создадим индекс для ускорения
+create index if not exists film_creation_date_idx on content.film(creation_date); 
+
+explain analyze select * from content.film where creation_date = '2020-04-01';
+
+Index Scan using film_creation_date_idx on film  (cost=0.43..8.85 rows=24 width=93) (actual time=0.025..0.034 rows=24 loops=1)
+   Index Cond: (creation_date = '2020-04-01'::date)
+ Planning Time: 0.103 ms
+ Execution Time: 0.061 ms
+(4 rows)
+
+Разберём, что нового показывает план:
+Index Scan using film_creation_date_idx — поиск выполнялся с помощью индекса film_creation_date_idx.
+Index Cond — условие, из-за которого был выбран индекс.
+Rows Removed by Filter — фильтр отсутствует, так как вы искали данные только по индексу и их не пришлось фильтровать.
+
+Индексы полезны не только для поиска конкретного значения, но и для range-запросов.
+Например, если пользователь захочет выбрать фильмы, которые вышли за определённый
+период, запрос будет выглядеть так:
+
+explain analyze select * from content.film where creation_date between '2020-04-01' and '2020-09-01'; 
+
+ Index Scan using film_creation_date_idx on film  (cost=0.43..118.01 rows=3329 width=93) (actual time=0.019..1.050 rows=3696 loops=1)
+   Index Cond: ((creation_date >= '2020-04-01'::date) AND (creation_date <= '2020-09-01'::date))
+ Planning Time: 0.262 ms
+ Execution Time: 1.486 ms
+(4 rows)
+
+ 
+Уникальные индексы
+Уникальные индексы нужны для обеспечения уникальных значений в таблице.
+
+Например, у вас есть уникальный индекс для колонки «логин». Если вы
+попробуете добавить нового пользователя с логином, который уже есть
+в базе, то СУБД откажется это делать. 
+
+Для создания уникального индекса достаточно добавить ключевое слово UNIQUE.
+
+CREATE UNIQUE INDEX some_name_idx ON some_table (some_unique_field) 
+
+Null-значение можно добавлять несколько раз — СУБД не будет считать их равными.
+По умолчанию создаётся и уникальный индекс на первичный ключ, но он не может быть NULL.
+
+Посмотрите список индексов командой:
+films=# select * from pg_indexes where tablename = 'film';
+
+
+Композитные индексы
+Если для поиска данных часто используется несколько колонок одновременно,
+можно построить по ним общий индекс — он называется композитным.
+
+Композитные индексы могут быть уникальными для нескольких колонок,
+например, в отношениях «многие ко многим» можно запретить добавлять
+дублирующие записи.
+
+
+Ранее для индексации вы указывали одну колонку. Если вы укажете более
+одной колонки через запятую, то создадите композитный индекс.
+
+
+Учтите, id фильмов и актёров у вас будут отличаться, так как сгенерировались UUID-идентификаторы, которые создают уникальные значения без возможности повторения.
+
+explain analyze select * from content.person_film where film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'; 
+
+ Gather  (cost=1000.00..92175.90 rows=9 width=64) (actual time=0.343..103.109 rows=5 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on person_film  (cost=0.00..91175.00 rows=4 width=64) (actual time=63.817..97.395 rows=2 loops=3)
+         Filter: (film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'::uuid)
+         Rows Removed by Filter: 1767800
+ Planning Time: 0.086 ms
+ Execution Time: 103.150 ms
+(8 rows)
+
+
+
+explain analyze  select * from content.person_film where film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745' and person_id = '9d579b7b-4a43-4e4a-8236-27fd574699b9'; 
+
+ Gather  (cost=1000.00..97699.50 rows=1 width=64) (actual time=0.359..101.499 rows=1 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on person_film  (cost=0.00..96699.40 rows=1 width=64) (actual time=63.509..96.557 rows=0 loops=3)
+         Filter: ((film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'::uuid) AND (person_id = '9d579b7b-4a43-4e4a-8236-27fd574699b9'::uuid))
+         Rows Removed by Filter: 1767801
+ Planning Time: 0.100 ms
+ Execution Time: 101.524 ms
+(8 rows)
+
+
+Создадим уникальный композитный индекс film_person_idx для таблицы
+person_film так, чтобы нельзя было добавить одного актёра несколько
+раз к одному фильму.
+
+create unique index person_film_idx on content.person_film (film_id, person_id);
+ 
+Чтобы использовать индекс, нужно составить запрос с ограничением по левой колонке,
+указанной в индексе film_id — композитный индекс начнёт искать данные по лидирующей
+колонке, то есть слева направо.
+
+films=# explain analyze select * from content.person_film where film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'; 
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using person_film_idx on person_film  (cost=0.56..40.71 rows=9 width=64) (actual time=0.044..0.047 rows=5 loops=1)
+   Index Cond: (film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'::uuid)
+ Planning Time: 0.297 ms
+ Execution Time: 0.068 ms
+(4 rows)
+
+films=# explain analyze  select * from content.person_film where film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745' and person_id = '9d579b7b-4a43-4e4a-8236-27fd574699b9'; 
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using person_film_idx on person_film  (cost=0.56..8.58 rows=1 width=64) (actual time=0.030..0.033 rows=1 loops=1)
+   Index Cond: ((film_id = 'ba3ab207-3516-44d5-8242-8b6d10ee2745'::uuid) AND (person_id = '9d579b7b-4a43-4e4a-8236-27fd574699b9'::uuid))
+ Planning Time: 0.110 ms
+ Execution Time: 0.057 ms
+(4 rows)
+
+
