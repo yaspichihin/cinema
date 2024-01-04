@@ -178,3 +178,125 @@ films=# explain analyze  select * from content.person_film where film_id = 'ba3a
 (4 rows)
 
 
+
+
+
+Потребление памяти
+Индексы потребляют память. Если вы будете бездумно создавать индексы,
+то место на диске может внезапно закончиться. 
+
+Проинспектируем таблицу film и индекс film_creation_date_idx,
+выполнив несколько команд в консоли psql. 
+
+Для начала узнаем размер таблицы:
+films=# \dt+ content.film
+
+Результат:
+                                   List of relations
+ Schema  | Name | Type  |  Owner   | Persistence | Access method | Size  | Description 
+---------+------+-------+----------+-------------+---------------+-------+-------------
+ content | film | table | postgres | permanent   | heap          | 78 MB | 
+(1 row)
+
+
+
+Узнаем размер индекса film_creation_date_idx:
+films=# \di+ content.film_creation_date_idx
+
+Результат:
+                                                 List of relations
+ Schema  |          Name          | Type  |  Owner   | Table | Persistence | Access method |  Size   | Description 
+---------+------------------------+-------+----------+-------+-------------+---------------+---------+-------------
+ content | film_creation_date_idx | index | postgres | film  | permanent   | btree         | 7912 kB | 
+(1 row)
+
+
+Ранее упоминался индекс film_work_pkey — давайте узнаем и его размер:
+films=# \di+ content.film_pkey
+
+Результат:
+                                         List of relations
+ Schema  |   Name    | Type  |  Owner   | Table | Persistence | Access method | Size  | Description 
+---------+-----------+-------+----------+-------+-------------+---------------+-------+-------------
+ content | film_pkey | index | postgres | film  | permanent   | btree         | 39 MB | 
+(1 row)
+
+
+В результате анализа видно, что размеры двух индексов занимают больше половины размера таблицы.
+
+
+
+
+Замедление вставки
+Один из неявных недостатков индексов — замедление вставки.
+Базе необходимо не только записать новые данные, но и обновить все индексы в таблице.
+Это увеличивает количество операций с диском.
+
+Проведём небольшой эксперимент, который покажет, что при наличии индексов скорость вставки уменьшается.
+В примерах будут использоваться команды самой программной оболочки наряду с SQL-командами.
+
+Включим в консоли psql вывод времени исполнения команд. 
+
+films=# \timing on
+Timing is on.
+
+
+Скопируем текущую таблицу в csv-файл. /output.csv — путь до файла,
+куда будут записаны данные таблицы.
+
+films=# \copy (select * from content.film) to '/tmp/output.csv' with csv
+COPY 1060681
+Time: 10753,875 ms (00:10,754)
+
+Удалим данные из таблицы.
+films=# truncate content.film cascade;
+NOTICE:  truncate cascades to table "genre_film"
+NOTICE:  truncate cascades to table "person_film"
+TRUNCATE TABLE
+Time: 1624,399 ms (00:01,624)
+
+
+Удалим индекс.
+films=# drop index content.film_creation_date_idx;
+DROP INDEX
+Time: 19,522 ms
+
+
+Скопируем данные из файла в таблицу /output.csv замените на путь из операции сохранения данных.
+
+films=# \copy content.film from '/tmp/output.csv' with delimiter ',' null '';
+COPY 1060681
+Time: 49129,087 ms (00:49,129)
+
+Снова удалим данные из таблицы.
+films=# truncate content.film cascade;
+NOTICE:  truncate cascades to table "genre_film"
+NOTICE:  truncate cascades to table "person_film"
+TRUNCATE TABLE
+Time: 227,696 ms
+
+
+Вернём индекс на место.
+films=# create index film_creation_date_idx on content.film(creation_date);
+CREATE INDEX
+Time: 20,785 ms
+
+Заново скопируем данные.
+
+films=# \copy content.film from '/tmp/output.csv' with delimiter ',' null '';
+COPY 1060681
+Time: 61402,850 ms (01:01,403)
+
+
+
+В примере разница в скорости загрузки занимает всего несколько секунд,
+и это не выглядит ужасно, хотя в процентном соотношении разница существенная.
+
+На практике вам придётся загружать данные куда большего объёма.
+Обычно в таких ситуациях перед загрузкой данных удаляют все индексы
+и создают их заново после успешной загрузки.
+
+
+
+
+
