@@ -7,7 +7,7 @@ create table if not exists content.film (
     description text,
     creation_date date,
     rating float,
-    type text not null,
+    film_type text not null,
     created timestamp with time zone,
     modified timestamp with time zone
 ); 
@@ -15,7 +15,6 @@ create table if not exists content.film (
 create table if not exists content.person (
     id uuid primary key,
     fullname text not null,
-    description text,
     created timestamp with time zone,
     modified timestamp with time zone
 ); 
@@ -23,6 +22,7 @@ create table if not exists content.person (
 create table if not exists content.genre (
     id uuid primary key,
     name text not null,
+    description text,
     created timestamp with time zone,
     modified timestamp with time zone
 ); 
@@ -33,8 +33,8 @@ create table if not exists content.genre_film (
     genre_id uuid not null,
     film_id uuid not null,
     created timestamp with time zone,
-    foreign key (genre_id) references content.genre(id),
-    foreign key (film_id) references content.film(id)
+    foreign key (genre_id) references content.genre(id) on delete cascade,
+    foreign key (film_id) references content.film(id) on delete cascade
 ); 
 
 create table if not exists content.person_film (
@@ -43,6 +43,6 @@ create table if not exists content.person_film (
     film_id uuid not null,
     role text not null,
     created timestamp with time zone,
-    foreign key (person_id) references content.person(id),
-    foreign key (film_id) references content.film(id)
+    foreign key (person_id) references content.person(id) on delete cascade,
+    foreign key (film_id) references content.film(id) on delete cascade
 );

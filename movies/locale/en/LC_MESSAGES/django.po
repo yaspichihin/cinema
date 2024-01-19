@@ -1,0 +1,127 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-19 03:58+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: .\movies\apps.py:9
+msgid "movies"
+msgstr "Movies"
+
+#: .\movies\models.py:14
+msgid "id"
+msgstr "Id"
+
+#: .\movies\models.py:29 .\movies\models.py:182 .\movies\models.py:215
+msgid "created"
+msgstr "Created"
+
+#: .\movies\models.py:33
+msgid "modified"
+msgstr "Modified"
+
+#: .\movies\models.py:46
+msgid "movie"
+msgstr "Movie"
+
+#: .\movies\models.py:47
+msgid "tv_show"
+msgstr "TV Show"
+
+#: .\movies\models.py:53
+msgid "actor"
+msgstr "Actor"
+
+#: .\movies\models.py:54
+msgid "writer"
+msgstr "Writer"
+
+#: .\movies\models.py:55
+msgid "director"
+msgstr "Director"
+
+#: .\movies\models.py:72
+msgid "fullname"
+msgstr "Fullname"
+
+#: .\movies\models.py:78 .\movies\models.py:168
+msgid "person"
+msgstr "Person"
+
+#: .\movies\models.py:79
+msgid "persons"
+msgstr "Persons"
+
+#: .\movies\models.py:89
+msgid "name"
+msgstr "Name"
+
+#: .\movies\models.py:93 .\movies\models.py:116
+msgid "description"
+msgstr "Description"
+
+#: .\movies\models.py:100 .\movies\models.py:206
+msgid "genre"
+msgstr "Genre"
+
+#: .\movies\models.py:101
+msgid "genres"
+msgstr "Genres"
+
+#: .\movies\models.py:111
+msgid "title"
+msgstr "Title"
+
+#: .\movies\models.py:122
+msgid "creation_date"
+msgstr "Creation date"
+
+#: .\movies\models.py:128
+msgid "rating"
+msgstr "Rating"
+
+#: .\movies\models.py:134
+msgid "film_type"
+msgstr "Type"
+
+#: .\movies\models.py:151 .\movies\models.py:173 .\movies\models.py:211
+msgid "film"
+msgstr "Film"
+
+#: .\movies\models.py:152
+msgid "films"
+msgstr "Films"
+
+#: .\movies\models.py:177
+msgid "person_role"
+msgstr "Person of the film"
+
+#: .\movies\models.py:188
+msgid "person_film"
+msgstr "Person of the film"
+
+#: .\movies\models.py:189
+msgid "person_films"
+msgstr "Persons of the film"
+
+#: .\movies\models.py:221
+msgid "genre_film"
+msgstr "Genre of the film"
+
+#: .\movies\models.py:222
+msgid "genre_films"
+msgstr "Genres of the film"
