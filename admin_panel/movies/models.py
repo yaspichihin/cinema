@@ -71,6 +71,7 @@ class Person(UUIDMixin, TimeStampedMixin):
     fullname = models.TextField(
         _('fullname'),
         blank=False,
+        null=False,
     )
 
     class Meta:
@@ -88,11 +89,12 @@ class Genre(UUIDMixin, TimeStampedMixin):
     name = models.TextField(
         _('name'),
         blank=False,
+        null=False,
     )
     description = models.TextField(
         _('description'),
         blank=True,
-        default='',
+        null=True,
     )
 
     class Meta:
@@ -111,12 +113,13 @@ class Film(UUIDMixin, TimeStampedMixin):
         _('title'),
         # blank=False делает поле обязательным для заполнения на уровне Django.
         blank=False,
+        null=False,
     )
     description = models.TextField(
         _('description'),
         # blank=True делает поле необязательным для заполнения на уровне Django.
         blank=True,
-        default='',
+        null=True,
     )
     creation_date = models.DateField(
         _('creation_date'),
